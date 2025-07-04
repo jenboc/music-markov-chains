@@ -13,16 +13,6 @@ notePattern o pc = case sequentialise ns of
         r = Single $ Rest Sixteenth
         ns = map n [Quarter, Eighth] ++ [r, n Eighth, r] ++ map n [Eighth, Quarter]
 
-parallelise :: [Music] -> Maybe Music
-parallelise [] = Nothing
-parallelise [m] = Just m
-parallelise (m:ms) = parallelise ms >>= Just . Parallel m
-
-sequentialise :: [Music] -> Maybe Music
-sequentialise [] = Nothing
-sequentialise [m] = Just m
-sequentialise (m:ms) = sequentialise ms >>= Just . Sequential m
-
 playScale :: Scale -> Int -> Duration -> Music
 playScale (Scale ps) o d = case sequentialise notes of   
     Just m -> m
@@ -53,15 +43,32 @@ scaleChord s oct n d = transpose (12 * oct) $ justParallelise
 chordProgression :: Scale -> Int -> Duration -> [Int] -> Music
 chordProgression s oct d = justSequentialise . map (\x -> scaleChord s oct x d)
 
-exportMusic :: Music -> IO ()
-exportMusic mus = do
+filename :: String
+filename = "exported-midi.mid"
+
+exportMusic :: FilePath -> Music -> IO ()
+exportMusic name mus = do
     putStrLn "Exporting Music as Midi File"
-    exportFile "exported-midi.mid" $ musicToMidi 480 mus
+    exportFile name $ musicToMidi 480 mus
     putStrLn "Music Exported!"
 
 main :: IO ()
 main = do
-    let g = chordProgression (majorScale G) 4 Half [1, 5, 4]
-        g' = justParallelise [g, transpose (-12) g]
+    let original = chordProgression (majorScale C) 3 Half [1,4,5]
 
-    exportMusic $ justSequentialise [g', Single $ Rest Whole, g']
+    putStrLn "Creating Original Music"
+    exportMusic "original.mid" $ original
+    putStrLn "Original Exported"
+
+    res <- importFile "original.mid"
+    case res of
+        Left str -> putStrLn $ "Problem importing file: " ++ str
+        Right midi -> do
+            let (tpq, mus) = midiToMusic midi
+            putStrLn $ "Imported Music @ " ++ show tpq ++ " ticks per quarter"
+            exportMusic "reexported.mid" mus
+            putStrLn "Re-exported Music"
+
+            print original
+            putStrLn "\n\n\n"
+            print mus

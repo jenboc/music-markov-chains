@@ -9,10 +9,15 @@ module Music
         Transposable(..),
         majorScale,
         minorScale,
-        musicToMidi
+        parallelise,
+        sequentialise,
+        musicToMidi,
+        midiToMusic,
     ) where
 
+import qualified Data.Map as M
 import Data.List (sortOn)
+import Data.Maybe (fromMaybe)
 import Codec.Midi
 
 -- Music ADTs
@@ -58,7 +63,7 @@ instance Transposable Pitch where
     transpose semis = intToPitch . (+ semis) . pitchToInt
 
 instance Transposable Note where
-    transpose semis (Rest d) = Rest d
+    transpose _ (Rest d) = Rest d
     transpose semis (Note p d) = Note (transpose semis p) d
 
 instance Transposable Music where
@@ -157,3 +162,71 @@ musicToMidi tsPerQuarter mus = Midi
         timeDiv = TicksPerBeat tsPerQuarter,
         tracks = [musicToTrack tsPerQuarter mus]
     }
+
+-- MIDI to Music
+ticksToDuration :: Int -> Int -> Duration
+ticksToDuration tsPerQuarter ts
+    | ts >= 4 * tsPerQuarter = Whole
+    | ts >= 2 * tsPerQuarter = Half
+    | ts >= tsPerQuarter = Quarter
+    | ts >= tsPerQuarter `div` 2 = Eighth
+    | otherwise = Sixteenth
+
+joinMusic :: (Music -> Music -> Music) -> [Music] -> Maybe Music
+joinMusic _ [] = Nothing
+joinMusic _ [m] = Just m
+joinMusic f (m:ms) = joinMusic f ms >>= Just . f m
+
+sequentialise :: [Music] -> Maybe Music
+sequentialise = joinMusic Sequential
+
+parallelise :: [Music] -> Maybe Music
+parallelise = joinMusic Parallel
+
+-- TODO: Calculate ticksPerQuarter from TicksPerSecond ADT
+calculateTicksPerQuarter :: TimeDiv -> Int
+calculateTicksPerQuarter (TicksPerBeat ts) = ts
+calculateTicksPerQuarter (TicksPerSecond _ _) = error "Not implemented"
+
+trackToMusic :: Int -> MidiTrack -> Music
+trackToMusic tsPerQuarter = assemble 0 . sortOn (\(x,_,_) -> x) . extractNotes M.empty [] . toAbsTime
+    where
+        toAbsTime :: MidiTrack -> MidiTrack
+        toAbsTime = snd . foldl walkTrack (0, []) . sortOn fst
+
+        walkTrack :: (Int, MidiTrack) -> (Int, Message) -> (Int, MidiTrack)
+        walkTrack (accTime, accTrack) (dt, msg) = let t' = accTime + dt
+            in (t', accTrack ++ [(t', msg)])
+
+        extractNotes :: M.Map (Int,Int) Int -> [(Int, Int, Note)] -> MidiTrack -> [(Int, Int, Note)]
+        extractNotes _ acc [] = reverse acc
+        extractNotes active acc ((t,m):r) = case m of
+            NoteOn c p v | v > 0 -> 
+                extractNotes (M.insert (c,p) t active) acc r
+
+            NoteOff c p _ -> case M.lookup (c,p) active of
+                Nothing -> extractNotes active acc r
+                Just tOn -> let p' = intToPitch p
+                                dur = ticksToDuration tsPerQuarter (t - tOn)
+                    in extractNotes (M.delete (c,p) active) 
+                        ((tOn, t, Note p' dur) : acc) r
+
+            -- MIDI Std: NoteOn w/ v = 0 === NoteOff
+            NoteOn c p v | v <= 0 ->
+                extractNotes active acc ((t, NoteOff c p v):r)
+
+            -- Anything else - just ignore it
+            _ -> extractNotes active acc r
+
+        assemble :: Int -> [(Int, Int, Note)] -> Music
+        assemble _ [] = Single (Rest Quarter)
+        assemble t ((s,e,n):r)
+            | t < s = let restDur = ticksToDuration tsPerQuarter (s - t)
+                      in Sequential (Single (Rest restDur)) 
+                        (Sequential (Single n) (assemble e r))
+            | otherwise = Sequential (Single n) (assemble e r)
+
+midiToMusic :: Midi -> (Int, Music)
+midiToMusic midi = let tpq = calculateTicksPerQuarter $ timeDiv midi
+                       mus = parallelise $ map (trackToMusic tpq) $ tracks midi
+                    in (tpq, fromMaybe (Single (Rest Whole)) mus)
