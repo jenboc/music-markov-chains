@@ -1,4 +1,12 @@
-module Music (Pitch(..), Duration(..), Note(..), Music(..)) where
+module Music 
+    (
+        PitchClass(..),
+        Pitch(..), 
+        Duration(..), 
+        Note(..), 
+        Music(..),
+        musicToMidi
+    ) where
 
 import Data.List (sortOn)
 import Codec.Midi
@@ -20,7 +28,7 @@ data Note = Note Pitch Duration | Rest Duration
 data Music = Single Note
            | Sequential Music Music
            | Parallel Music Music
-           | Repeated Int Music
+           | Repeat Int Music
 
 -- Midi Conversion
 pitchToInt :: Pitch -> Int
@@ -41,7 +49,7 @@ totalDuration tsPerQuarter (Sequential m1 m2) =
     totalDuration tsPerQuarter m1 + totalDuration tsPerQuarter m2
 totalDuration tsPerQuarter (Parallel m1 m2) =
     max (totalDuration tsPerQuarter m1) (totalDuration tsPerQuarter m2)
-totalDuration tsPerQuarter (Repeated n m) = n * totalDuration tsPerQuarter m
+totalDuration tsPerQuarter (Repeat n m) = n * totalDuration tsPerQuarter m
 
 musicToTrack :: Int -> Music -> MidiTrack
 musicToTrack tsPerQuarter = toDeltaTime 0 . sortOn fst . walk 0
@@ -66,12 +74,13 @@ musicToTrack tsPerQuarter = toDeltaTime 0 . sortOn fst . walk 0
                                         w2 = walk (t + totalDur m1) m2
                                     in w1 ++ w2
         walk t (Parallel m1 m2) = [m1, m2] >>= walk t
-        walk t (Repeated n m) = let d = totalDur m in concat 
+        walk t (Repeat n m) = let d = totalDur m in concat 
             [walk (t + i * d) m | i <- [0..n-1]]
 
         -- Transform the (sorted) absolutely timed events into delta timed ones
+        -- (Also sneakily add in the TrackEnd event)
         toDeltaTime :: Int -> [(Int, Message)] -> MidiTrack
-        toDeltaTime _ [] = []
+        toDeltaTime _ [] = [(0, TrackEnd)]
         toDeltaTime prev ((t,m):xs) = (t - prev, m) : toDeltaTime t xs
 
 musicToMidi :: Int -> Music -> Midi
