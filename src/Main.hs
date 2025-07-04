@@ -3,8 +3,8 @@ module Main where
 import Music
 import Codec.Midi
 
-wholeNote :: Int -> PitchClass -> Music
-wholeNote o pc = case sequentialise ns of
+notePattern :: Int -> PitchClass -> Music
+notePattern o pc = case sequentialise ns of
     Nothing -> Single (Rest Whole)
     Just m -> m
     where
@@ -12,15 +12,6 @@ wholeNote o pc = case sequentialise ns of
         n d = Single $ Note (Pitch pc o) d
         r = Single $ Rest Sixteenth
         ns = map n [Quarter, Eighth] ++ [r, n Eighth, r] ++ map n [Eighth, Quarter]
-
-c :: Music
-c = Single (Note (Pitch C 4) Whole)
-
-e :: Music
-e = Single (Note (Pitch E 4) Whole)
-
-g :: Music
-g = Single (Note (Pitch E 4) Whole)
 
 parallelise :: [Music] -> Maybe Music
 parallelise [] = Nothing
@@ -32,32 +23,45 @@ sequentialise [] = Nothing
 sequentialise [m] = Just m
 sequentialise (m:ms) = sequentialise ms >>= Just . Sequential m
 
-chord :: Int -> [PitchClass] -> Music
-chord o pcs = case parallelise $ map (wholeNote o) pcs of
+playScale :: Scale -> Int -> Duration -> Music
+playScale (Scale ps) o d = case sequentialise notes of   
+    Just m -> m
+    Nothing -> Single (Rest Whole)
+    where
+        notes = map (\(Pitch pc o') -> Single $ Note (Pitch pc (o + o')) d) ps
+
+justSequentialise :: [Music] -> Music
+justSequentialise ms = case sequentialise ms of
     Just m -> m
     Nothing -> Single (Rest Whole)
 
-chords :: [Music]
-chords = map (uncurry chord)
-    [
-        (4, [C, E, G]),
-        (4, [G, B, D]),
-        (4, [F, A, C]),
-        (4, [C, E, G]),
-        (4, [C, E, G]),
-        (4, [F, A, C]),
-        (4, [G, B, D]),
-        (5, [C, E, G]),
-        (4, [F, A, C])
-    ]
-
-myMusic :: Music
-myMusic = case sequentialise chords of
-    Just m -> Repeat 1 m
+justParallelise :: [Music] -> Music
+justParallelise ms = case parallelise ms of
+    Just m -> m
     Nothing -> Single (Rest Whole)
+
+pitchFrom :: Scale -> Int -> Int -> Pitch
+pitchFrom (Scale ps) a n = let a' = a `mod` length ps
+                               b = (a' + n) `mod` length ps
+                               dOct = (a' + n) `div` length ps
+                           in (\(Pitch pc o) -> Pitch pc (o + dOct)) $ ps !! b
+
+scaleChord :: Scale -> Int -> Int -> Duration -> Music
+scaleChord s oct n d = transpose (12 * oct) $ justParallelise 
+    $ map ((\p -> Single (Note p d)) . pitchFrom s n) [0, 2, 4]
+
+chordProgression :: Scale -> Int -> Duration -> [Int] -> Music
+chordProgression s oct d = justSequentialise . map (\x -> scaleChord s oct x d)
+
+exportMusic :: Music -> IO ()
+exportMusic mus = do
+    putStrLn "Exporting Music as Midi File"
+    exportFile "exported-midi.mid" $ musicToMidi 480 mus
+    putStrLn "Music Exported!"
 
 main :: IO ()
 main = do
-    putStrLn "Exporting Midi File"
-    exportFile "exported-midi.mid" $ musicToMidi 480 myMusic
-    putStrLn "Midi Exported!"
+    let g = chordProgression (majorScale G) 4 Half [1, 5, 4]
+        g' = justParallelise [g, transpose (-12) g]
+
+    exportMusic $ justSequentialise [g', Single $ Rest Whole, g']
