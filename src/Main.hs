@@ -1,6 +1,8 @@
 module Main where
 
-import Music
+import Music.Types
+import Music.Composition
+import Music.Conversion
 import Codec.Midi
 
 notePattern :: Int -> PitchClass -> Music
