@@ -2,10 +2,15 @@ module Music.Composition
     (
         Scale(..),
         majorScale,
-        minorScale
+        minorScale,
+        getScalePitchFrom,
+        getScaleChord,
+        chordProgression
     ) where
 
 import Music.Types
+
+import Data.Maybe (fromMaybe)
 
 newtype Scale = Scale [Pitch]
 
@@ -39,3 +44,19 @@ minorScale root = Scale $ map ($ Pitch root 0) transpositions
                 transpose 8,
                 transpose 10
             ]
+
+-- Get the nth pitch from the ath in the scale
+getScalePitchFrom :: Scale -> Int -> Int -> Pitch
+getScalePitchFrom (Scale ps) a n = let a' = a `mod` length ps
+                                       b = (a' + n) `mod` length ps
+                                       dOct = (a' + n) `div` length ps
+                           in (\(Pitch pc o) -> Pitch pc (o + dOct)) $ ps !! b
+
+getScaleChord :: Scale -> Int -> Int -> Duration -> Music
+getScaleChord s oct n d = transpose (12 * oct) $ fromMaybe (Single (Rest Whole))
+    $ parallelise $ map ((\p -> Single (Note p d)) . getScalePitchFrom s n) 
+    [0, 2, 4]
+
+chordProgression :: Scale -> Int -> Duration -> [Int] -> Music
+chordProgression s oct d = fromMaybe (Single (Rest Whole)) . 
+    sequentialise . map (\x -> getScaleChord s oct x d)
