@@ -23,10 +23,10 @@ exportMusic name mus = do
 
 main :: IO ()
 main = do
-    let original = chordProgression (majorScale C) 3 Half [1,4,5]
+    let original = chordProgression (majorScale Ds) 3 Half [2,3,6]
 
     putStrLn "Creating Original Music"
-    exportMusic "original.mid" $ original
+    exportMusic "original.mid" original
     putStrLn "Original Exported"
 
     res <- importFile "original.mid"

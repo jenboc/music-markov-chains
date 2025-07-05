@@ -56,42 +56,29 @@ musicToMidi tsPerQuarter mus = Midi
 
 -- ####### MIDI -> Music #######
 trackToMusic :: Int -> MidiTrack -> Music
-trackToMusic tsPerQuarter = assemble 0 . sortOn (\(x,_,_) -> x) . extractNotes M.empty [] . toAbsTime
+trackToMusic tsPerQuarter = assemble . extractNotes M.empty [] . toAbsTime
     where
-        toAbsTime :: MidiTrack -> MidiTrack
-        toAbsTime = snd . foldl walkTrack (0, []) . sortOn fst
-
-        walkTrack :: (Int, MidiTrack) -> (Int, Message) -> (Int, MidiTrack)
-        walkTrack (accTime, accTrack) (dt, msg) = let t' = accTime + dt
-            in (t', accTrack ++ [(t', msg)])
-
-        extractNotes :: M.Map (Int,Int) Int -> [(Int, Int, Note)] -> MidiTrack -> [(Int, Int, Note)]
+        extractNotes :: M.Map (Int,Int) Int -> [(Int, Note)] -> [(Int, Message)] -> [(Int, Note)]
         extractNotes _ acc [] = reverse acc
-        extractNotes active acc ((t,m):r) = case m of
-            NoteOn c p v | v > 0 -> 
-                extractNotes (M.insert (c,p) t active) acc r
+        extractNotes onMap acc ((t,m):r) = case m of
+            NoteOn c p v | v > 0 -> extractNotes (M.insert (c,p) t onMap) acc r
+            NoteOff c p v -> case M.lookup (c,p) onMap of
+                Nothing -> extractNotes onMap acc r
+                Just start -> let tDiff = t - start
+                                  dur = ticksToDuration tsPerQuarter tDiff
+                                  pc = intToPitch p
+                              in extractNotes (M.delete (c,p) onMap) ((start, Note pc dur) : acc) r
+            NoteOn c p _ -> extractNotes onMap acc ((t,NoteOff c p 0):r)
+            _ -> extractNotes onMap acc r
 
-            NoteOff c p _ -> case M.lookup (c,p) active of
-                Nothing -> extractNotes active acc r
-                Just tOn -> let p' = intToPitch p
-                                dur = ticksToDuration tsPerQuarter (t - tOn)
-                    in extractNotes (M.delete (c,p) active) 
-                        ((tOn, t, Note p' dur) : acc) r
-
-            -- MIDI Std: NoteOn w/ v = 0 === NoteOff
-            NoteOn c p v | v <= 0 ->
-                extractNotes active acc ((t, NoteOff c p v):r)
-
-            -- Anything else - just ignore it
-            _ -> extractNotes active acc r
-
-        assemble :: Int -> [(Int, Int, Note)] -> Music
-        assemble _ [] = Single (Rest Quarter)
-        assemble t ((s,e,n):r)
-            | t < s = let restDur = ticksToDuration tsPerQuarter (s - t)
-                      in Sequential (Single (Rest restDur)) 
-                        (Sequential (Single n) (assemble e r))
-            | otherwise = Sequential (Single n) (assemble e r)
+        assemble :: [(Int, Note)] -> Music
+        assemble [] = Single $ Rest Whole
+        assemble [(t,n)] = Single n
+        assemble ((t1,n1):(t2,n2):r) = let ass1 = assemble [(t1,n1)]
+                                           ass2 = assemble ((t2,n2):r)
+                                       in if t1 == t2
+                                        then Parallel ass1 ass2
+                                        else Sequential ass1 ass2
 
 midiToMusic :: Midi -> (Int, Music)
 midiToMusic midi = let tpq = calculateTicksPerQuarter $ timeDiv midi
