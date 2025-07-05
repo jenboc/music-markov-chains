@@ -1,12 +1,13 @@
 module Main where
 
+import Data.Maybe (fromMaybe)
 import Music.Types
 import Music.Composition
 import Music.Conversion
 import Codec.Midi
 
-notePattern :: Int -> PitchClass -> Music
-notePattern o pc = case sequentialise ns of
+notePattern :: Pitch -> Music
+notePattern (Pitch pc o) = case sequentialise ns of
     Nothing -> Single (Rest Whole)
     Just m -> m
     where
@@ -14,6 +15,13 @@ notePattern o pc = case sequentialise ns of
         n d = Single $ Note (Pitch pc o) d
         r = Single $ Rest Sixteenth
         ns = map n [Quarter, Eighth] ++ [r, n Eighth, r] ++ map n [Eighth, Quarter]
+
+mapPattern :: Music -> Music
+mapPattern (Single (Rest r)) = Single $ Rest r
+mapPattern (Single (Note p _)) = notePattern p
+mapPattern (Sequential m1 m2) = Sequential (mapPattern m1) (mapPattern m2)
+mapPattern (Parallel m1 m2) = Parallel (mapPattern m1) (mapPattern m2)
+mapPattern (Repeat n m) = Repeat n $ mapPattern m
 
 exportMusic :: FilePath -> Music -> IO ()
 exportMusic name mus = do
@@ -23,7 +31,11 @@ exportMusic name mus = do
 
 main :: IO ()
 main = do
-    let original = chordProgression (majorScale Ds) 3 Half [2,3,6]
+    let scale = majorScale Ds
+        getPitch x = transpose 36 . Single . flip Note Whole . getScalePitchFrom scale x
+    let original = mapPattern $ Sequential
+            (chordProgression scale 3 Whole [2,3,6])  
+            (fromMaybe (Single $ Rest Whole) $ parallelise $ (\l -> head l : transpose (-1) (l !! 1) : [last l]) $ map (getPitch 5) [0, 2, 4])
 
     putStrLn "Creating Original Music"
     exportMusic "original.mid" original

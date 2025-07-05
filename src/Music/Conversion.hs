@@ -8,7 +8,7 @@ import Music.Types
 
 import qualified Data.Map as M
 import Data.List (sortOn)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 import Codec.Midi
 
 type MidiTrack = [(Int, Message)]
@@ -73,12 +73,23 @@ trackToMusic tsPerQuarter = assemble . extractNotes M.empty [] . toAbsTime
 
         assemble :: [(Int, Note)] -> Music
         assemble [] = Single $ Rest Whole
-        assemble [(t,n)] = Single n
+        assemble [(_,n)] = Single n
         assemble ((t1,n1):(t2,n2):r) = let ass1 = assemble [(t1,n1)]
                                            ass2 = assemble ((t2,n2):r)
                                        in if t1 == t2
                                         then Parallel ass1 ass2
-                                        else Sequential ass1 ass2
+                                        else fromMaybe (Single $ Rest Whole) $ sequentialise $ (ass1 : fromMaybe [] (restBetween (t1,n1) (t2,n2))) ++ [ass2]
+
+        getDuration :: Note -> Duration
+        getDuration (Note p d) = d
+        getDuration (Rest d) = d
+
+        restBetween :: (Int, Note) -> (Int, Note) -> Maybe [Music]
+        restBetween (t1,n1) (t2,n2) = let e1 = t1 + durationToTicks tsPerQuarter (getDuration n1)
+                                          dt = t2 - e1
+            in case dt of
+                0 -> Nothing
+                ticks -> Just $ map (Single . Rest) $ ticksToDurations tsPerQuarter ticks
 
 midiToMusic :: Midi -> (Int, Music)
 midiToMusic midi = let tpq = calculateTicksPerQuarter $ timeDiv midi
@@ -86,6 +97,15 @@ midiToMusic midi = let tpq = calculateTicksPerQuarter $ timeDiv midi
                     in (tpq, fromMaybe (Single (Rest Whole)) mus)
 
 -- ###### HELPER FUNCTIONS ######
+ticksToDurations :: Int -> Int -> [Duration]
+ticksToDurations tsPerQuarter ts = buildList ts []
+    where
+        buildList :: Int -> [Duration] -> [Duration]
+        buildList n l | n <= 0 = l
+        buildList n l = let toAdd = ticksToDuration tsPerQuarter n
+                            remaining = n - durationToTicks tsPerQuarter toAdd
+                        in buildList remaining (l ++ [toAdd])
+
 ticksToDuration :: Int -> Int -> Duration
 ticksToDuration tsPerQuarter ts
     | ts >= 4 * tsPerQuarter = Whole
