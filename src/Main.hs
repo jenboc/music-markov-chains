@@ -1,9 +1,9 @@
 module Main where
 
 import Data.Maybe (fromMaybe)
-import Music.Types
-import Music.Composition
-import Music.Conversion
+import System.Environment (getArgs)
+
+import Music
 import Codec.Midi
 
 notePattern :: Pitch -> Music
@@ -29,27 +29,20 @@ exportMusic name mus = do
     exportFile name $ musicToMidi 480 mus
     putStrLn "Music Exported!"
 
+yippee :: Midi -> IO ()
+yippee midi = do
+    let mus = snd $ midiToMusic midi
+    print mus
+    putStrLn "Reexporting music"
+    exportMusic "reexported.mid" mus
+
 main :: IO ()
 main = do
-    let scale = majorScale Ds
-        getPitch x = transpose 36 . Single . flip Note Whole . getScalePitchFrom scale x
-    let original = mapPattern $ Sequential
-            (chordProgression scale 3 Whole [2,3,6])  
-            (fromMaybe (Single $ Rest Whole) $ parallelise $ (\l -> head l : transpose (-1) (l !! 1) : [last l]) $ map (getPitch 5) [0, 2, 4])
+    args <- getArgs
 
-    putStrLn "Creating Original Music"
-    exportMusic "original.mid" original
-    putStrLn "Original Exported"
+    let filepath = head args
 
-    res <- importFile "original.mid"
+    res <- importFile filepath
     case res of
-        Left str -> putStrLn $ "Problem importing file: " ++ str
-        Right midi -> do
-            let (tpq, mus) = midiToMusic midi
-            putStrLn $ "Imported Music @ " ++ show tpq ++ " ticks per quarter"
-            exportMusic "reexported.mid" mus
-            putStrLn "Re-exported Music"
-
-            print original
-            putStrLn "\n\n\n"
-            print mus
+        Left str -> putStrLn str
+        Right midi -> yippee midi

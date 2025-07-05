@@ -60,7 +60,8 @@ executable music-hs
     -- Modules included in this executable, other than Main.
     other-modules:    Music.Composition,
                       Music.Conversion,
-                      Music.Types
+                      Music.Types,
+                      Music
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
