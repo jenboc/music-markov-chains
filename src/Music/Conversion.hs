@@ -1,7 +1,8 @@
 module Music.Conversion
     (
         musicToMidi,
-        midiToMusic
+        midiToMusic,
+        totalDuration
     ) where
 
 import Music.Types

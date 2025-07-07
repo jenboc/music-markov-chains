@@ -61,7 +61,8 @@ executable music-hs
     other-modules:    Music.Composition,
                       Music.Conversion,
                       Music.Types,
-                      Music
+                      Music,
+                      Generation
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -70,7 +71,8 @@ executable music-hs
     build-depends:    base ^>=4.17.2.1,
                       HCodecs,
                       mtl,
-                      containers
+                      containers,
+                      random
 
     -- Directories containing source files.
     hs-source-dirs:   src

@@ -9,28 +9,36 @@ module Music.Types
         sequentialise,
         parallelise,
         intToPitch,
-        pitchToInt
+        pitchToInt,
+        expandRepeat
     ) where
+
+import Data.Maybe (fromMaybe)
 
 type Octave = Int
 
 data PitchClass = C | Cs | D | Ds | E | F | Fs | G | Gs | A | As | B 
-    deriving (Enum, Eq, Show)
+    deriving (Enum, Eq, Show, Ord)
 
 data Pitch = Pitch PitchClass Octave
     deriving (Eq, Show)
 
-data Duration = Whole | Half | Quarter | Eighth | Sixteenth
-    deriving (Eq, Show)
+data Duration = Sixteenth | Eighth | Quarter | Half | Whole
+    deriving (Eq, Show, Ord)
 
 data Note = Note Pitch Duration | Rest Duration
-    deriving Show
+    deriving (Eq, Show)
 
 data Music = Single Note
            | Sequential Music Music
            | Parallel Music Music
            | Repeat Int Music
     deriving Show
+
+expandRepeat :: Music -> Music
+expandRepeat (Repeat n m) = fromMaybe (Single $ Rest Sixteenth) 
+    $ sequentialise $ replicate n m
+expandRepeat m = m
 
 class Transposable a where
     transpose :: Int -> a -> a
