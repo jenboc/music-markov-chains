@@ -1,14 +1,8 @@
 module Main where
 
-import Data.Maybe (fromMaybe)
-import System.Environment (getArgs)
-import qualified Data.Map as M
-
 import Music
 import Generation
 import Codec.Midi
-import System.Random
-import Data.Functor
 import Data.List (sort, group)
 
 notePattern :: Pitch -> Music
@@ -30,12 +24,11 @@ mapPattern (Repeat n m) = Repeat n $ mapPattern m
 
 type Distribution a = [(a, Double)]
 
-uniformScaleDist :: Int -> PitchClass -> (Distribution PitchClass, Distribution Int)
-uniformScaleDist o pc = (pcDist, oDist)
+uniformScaleDist :: Int -> Scale -> (Distribution PitchClass, Distribution Int)
+uniformScaleDist o (Scale pits) = (pcDist, oDist)
     where
         scale :: ([PitchClass], [Int])
-        scale = let (Scale pits) = majorScale pc in
-            unzip $ map (\(Pitch cls oct) -> (cls, oct)) 
+        scale = unzip $ map (\(Pitch cls oct) -> (cls, oct)) 
                 $ map (transpose (12 * o)) pits
 
         pcDist :: Distribution PitchClass
@@ -76,7 +69,7 @@ ps = Probabilities
             }
     }
     where
-        (pcDist, oDist) = uniformScaleDist 4 G
+        (pcDist, oDist) = uniformScaleDist 4 (majorScale G)
 
 dble :: Int -> Double
 dble n = fromIntegral n :: Double

@@ -62,6 +62,8 @@ executable music-hs
                       Music.Conversion,
                       Music.Types,
                       Music,
+                      Generation.Shared,
+                      Generation.Random,
                       Generation
 
     -- LANGUAGE extensions used by modules in this package.
