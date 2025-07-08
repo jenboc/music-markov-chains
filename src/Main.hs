@@ -71,16 +71,55 @@ ps = Probabilities
     where
         (pcDist, oDist) = uniformScaleDist 4 (majorScale G)
 
+cMajorChord :: Int -> Duration -> Music
+cMajorChord = getScaleChord (majorScale G) 4
+
+bayesNet :: BayesNet Music
+bayesNet = cChordNet
+    where
+        cChordNet = Node (cMajorChord 0 Half)
+            [
+                (fChordNet, 0.3),
+                (gChordNet, 0.3),
+                (dChordNet, 0.2),
+                (eChordNet, 0.2)
+            ]
+        fChordNet = Node (cMajorChord 3 Half)
+            [
+                (cChordNet, 0.3),
+                (gChordNet, 0.3),
+                (dChordNet, 0.2),
+                (eChordNet, 0.2)
+            ]
+        gChordNet = Node (cMajorChord 4 Half)
+            [
+                (fChordNet, 0.3),
+                (cChordNet, 0.3),
+                (dChordNet, 0.2),
+                (eChordNet, 0.2)
+            ]
+        dChordNet = Node (cMajorChord 1 Half)
+            [
+                (fChordNet, 0.1),
+                (gChordNet, 0.1),
+                (cChordNet, 0.3),
+                (eChordNet, 0.5)
+            ]
+        eChordNet = Node (cMajorChord 2 Half)
+            [
+                (fChordNet, 0.3),
+                (gChordNet, 0.1),
+                (dChordNet, 0.5),
+                (cChordNet, 0.1)
+            ]
+
 dble :: Int -> Double
 dble n = fromIntegral n :: Double
 
 main :: IO ()
 main = do
     putStrLn "Letsa go"
-    nStr <- getLine
-    let n = read nStr :: Int
     
-    putStrLn $ "Generating Music Tree of Height " ++ nStr
-    m <- randomGen ps n
+    m <- bayesGen bayesNet 30
     print m
-    exportFile "generated.mid" $ musicToMidi 480 m
+    exportFile "generated.mid" $ musicToMidi 480 (mapPattern m)

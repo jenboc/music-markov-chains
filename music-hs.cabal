@@ -64,6 +64,7 @@ executable music-hs
                       Music,
                       Generation.Shared,
                       Generation.Random,
+                      Generation.Bayes,
                       Generation
 
     -- LANGUAGE extensions used by modules in this package.
