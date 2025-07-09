@@ -20,6 +20,7 @@ data MusicProbs = MusicProbs
         parallel :: Double,
         repeated :: Double
     }
+    deriving (Show, Eq)
 
 data NoteProbs = NoteProbs
     {
@@ -29,12 +30,14 @@ data NoteProbs = NoteProbs
         pitchClass :: [(PitchClass, Double)],
         octave :: [(Int, Double)]
     }
+    deriving (Show, Eq)
 
 data Probabilities = Probabilities
     {
         musicProbs :: MusicProbs,
         noteProbs :: NoteProbs
     }
+    deriving (Show, Eq)
 
 -- Representing an empty music ADT
 nullMusic :: Music
