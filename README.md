@@ -1,2 +1,2 @@
-# music-hs
-An algorithmic music composer written in Haskell!!
+# music-generator
+A music generator in Haskell.
