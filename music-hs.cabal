@@ -61,6 +61,7 @@ executable music-hs
     other-modules:    Music.Composition,
                       Music.Conversion,
                       Music.Types,
+                      Music.Canonical,
                       Music,
                       Generation.Shared,
                       Generation.Random,

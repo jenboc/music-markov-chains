@@ -116,10 +116,19 @@ bayesNet = cChordNet
 dble :: Int -> Double
 dble n = fromIntegral n :: Double
 
+a :: Music
+a = Sequential
+    (Parallel (Single (Note (Pitch C 4) Whole)) (Single (Note (Pitch G 4) Whole)))
+    (Parallel (Single (Note (Pitch C 4) Whole)) (Single (Note (Pitch G 4) Whole)))
+
+b :: Music
+b = Parallel
+    (Sequential (Single (Note (Pitch C 4) Whole)) (Single (Note (Pitch C 4) Whole)))
+    (Sequential (Single (Note (Pitch G 4) Whole)) (Single (Note (Pitch G 4) Whole)))
+
 main :: IO ()
 main = do
-    putStrLn "Letsa go"
-    
-    m <- bayesGen bayesNet 30
-    print m
-    exportFile "generated.mid" $ musicToMidi 480 (mapPattern m)
+    putStrLn "Structure Check"
+    print $ a == b
+    putStrLn "Semantic Check"
+    print $ a === b

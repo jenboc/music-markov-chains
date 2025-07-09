@@ -33,19 +33,12 @@ data Music = Single Note
            | Sequential Music Music
            | Parallel Music Music
            | Repeat Int Music
-    deriving Show
+    deriving (Eq, Show)
 
 expandRepeat :: Music -> Music
 expandRepeat (Repeat n m) = fromMaybe (Single $ Rest Sixteenth) 
     $ sequentialise $ replicate n m
 expandRepeat m = m
-
--- TODO: Implement Canonical Form in full
-canonicalForm :: Music -> Music
-canonicalForm (Single n) = Single n
-canonicalForm (Sequential a b) = Sequential (canonicalForm a) (canonicalForm b)
-canonicalForm (Parallel a b) = Parallel (canonicalForm a) (canonicalForm b)
-canonicalForm r@(Repeat _ _) = canonicalForm $ expandRepeat r
 
 class Transposable a where
     transpose :: Int -> a -> a
