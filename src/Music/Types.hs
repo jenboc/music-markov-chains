@@ -21,19 +21,19 @@ data PitchClass = C | Cs | D | Ds | E | F | Fs | G | Gs | A | As | B
     deriving (Enum, Eq, Show, Ord)
 
 data Pitch = Pitch PitchClass Octave
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 data Duration = Sixteenth | Eighth | Quarter | Half | Whole
     deriving (Eq, Show, Ord)
 
 data Note = Note Pitch Duration | Rest Duration
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 data Music = Single Note
            | Sequential Music Music
            | Parallel Music Music
            | Repeat Int Music
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 expandRepeat :: Music -> Music
 expandRepeat (Repeat n m) = fromMaybe (Single $ Rest Sixteenth) 
