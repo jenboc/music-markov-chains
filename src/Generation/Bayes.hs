@@ -1,93 +1,172 @@
 module Generation.Bayes
     (
-        BayesNet(..),
-        bayesGen,
-        findNode,
-        createBayesMusicNet
+        Graph(..),
+        emptyGraph,
+        createMusicMarkov,
+        markovGen,
+        combMarkov
     ) where
 
-import Generation.Shared
 import Music
+import Generation.Shared
+import System.Random (randomRIO)
 import Data.Maybe (fromMaybe)
+import Data.Ratio (numerator, denominator, (%))
 import qualified Data.Map as M
+import qualified Data.Map.Strict as MS
 
--- ADT for a Bayes Network
--- A node has data and probabilistic connections
-data BayesNet a = Node a [(BayesNet a, Double)] | Empty
-    deriving Show
-type TransFreqTable a = M.Map a (M.Map a Int)
+-- Type Definitions
+type Label = Int
+type AdjacencyList a = M.Map Label (M.Map Label a)
 
--- Create a bayes network for a given piece of music using phrases of length
--- n
-createBayesMusicNet :: Int -> Music -> BayesNet Music
-createBayesMusicNet n m 
-    | n <= 0 = Empty
-    | otherwise = let phrases = conjoin n $ flatten $ canonicalForm m
-                      freqTable = collectData phrases
-                  in case phrases of
-                    [] -> Empty
-                    (f:_) -> construct freqTable M.empty f
+data Graph a b = Graph
+    {
+        labelToDataMap :: M.Map Label a,
+        dataToLabelMap :: M.Map a Label,
+        adjList :: AdjacencyList b,
+        nextLabel :: Label
+    }
+
+instance Functor (Graph a) where
+    fmap f g@(Graph { adjList = l }) =
+        g { adjList = MS.map (fmap f) l }
+
+emptyGraph :: Graph a b
+emptyGraph = Graph
+    {
+        labelToDataMap = M.empty,
+        dataToLabelMap = M.empty,
+        adjList = M.empty,
+        nextLabel = 0
+    }
+
+-- Graph Operations
+lookupLabel :: Ord a => a -> Graph a b -> Maybe Label
+lookupLabel a g = M.lookup a (dataToLabelMap g)
+
+lookupData :: Ord a => Label -> Graph a b -> Maybe a
+lookupData l g = M.lookup l (labelToDataMap g)
+
+insertData :: Ord a => a -> Graph a b -> Graph a b
+insertData a g = let l = nextLabel g in case lookupLabel a g of
+    Just l -> g
+    Nothing -> 
+        Graph
+            {
+                labelToDataMap = M.insert l a (labelToDataMap g),
+                dataToLabelMap = M.insert a l (dataToLabelMap g),
+                adjList = M.insert l M.empty (adjList g),
+                nextLabel = l + 1
+            }
+
+lookupOrInsert :: Ord a => a -> Graph a b -> (Graph a b, Label)
+lookupOrInsert a g = let g' = insertData a g in case lookupLabel a g' of
+    Nothing -> error "Insertion failed"
+    Just l -> (g',l)
+
+insertEdge :: Ord a => a -> a -> b -> Graph a b -> Graph a b
+insertEdge from to weight g =
+    let (g', fromLabel) = lookupOrInsert from g
+        (g'', toLabel) = lookupOrInsert to g'
+        adjList' = M.alter (addEdge toLabel weight) fromLabel (adjList g'')
+    in g'' { adjList = adjList' } 
     where
-        -- Flatten the structure into a list of subtrees played in sequence
+        addEdge l w Nothing = Just $ M.singleton l w
+        addEdge l w (Just innerMap) = Just $ M.insert l w innerMap
+
+insertEdgeWith :: Ord a => (b -> b -> b) -> a -> a -> b -> Graph a b -> Graph a b
+insertEdgeWith f from to weight g =
+    let (g', fromLabel) = lookupOrInsert from g
+        (g'', toLabel) = lookupOrInsert to g'
+        adjList' = M.alter (addEdge toLabel weight) fromLabel (adjList g'')
+    in g'' { adjList = adjList' }
+    where
+        addEdge l w Nothing = Just $ M.singleton l w
+        addEdge l w (Just innerMap) = Just $ M.insertWith f l w innerMap
+
+unionWith :: (Ord a, Eq a) => (b -> b -> b) -> Graph a b -> Graph a b -> Graph a b
+unionWith f a b = 
+    let aLabels = M.keys (labelToDataMap a)
+        (g, aLabelToBLabel) = foldl addLabels (b,M.empty) aLabels
+        aAdjList = replaceKeys (adjList a) aLabelToBLabel
+    in g {adjList = MS.unionWith (MS.unionWith f) aAdjList (adjList g)}
+    where
+        addLabels (gAcc, mAcc) aLabel = 
+            let aData = case lookupData aLabel a of
+                    Nothing -> error "The label doesn't have any data attached to it!"
+                    Just d -> d
+                (gAcc',bLabel) = lookupOrInsert aData gAcc
+                mAcc' = M.insert aLabel bLabel mAcc
+            in (gAcc', mAcc')
+
+        replaceKeys m labelMap = MS.fromList 
+            [
+                (newKey,v) 
+                | (oldKey,v) <- M.toList m, 
+                  Just newKey <- [M.lookup oldKey labelMap]
+            ]
+
+
+-- Constructing a Markov Chain
+markovFromFreqGraph :: Ord a => Graph a Integer -> Graph a Rational
+markovFromFreqGraph g@(Graph {adjList = l}) = g {adjList = MS.map normalise l}
+    where
+        normalise innerMap = 
+            let total = MS.foldl' (+) 0 innerMap
+            in MS.map (% total) innerMap
+
+createTransFreqGraph :: Ord a => [a] -> Graph a Integer
+createTransFreqGraph = build emptyGraph
+    where
+        build acc [] = acc
+        build acc [x] = insertData x acc
+        build acc (from:to:r) = insertEdgeWith (+) from to 1 (build acc (to:r))
+
+createMusicMarkov :: Int -> Music -> Graph Music Rational
+createMusicMarkov n = markovFromFreqGraph . createTransFreqGraph . collect n . flatten
+    where
         flatten :: Music -> [Music]
-        flatten r@(Repeat _ _) = flatten $ expandRepeat r
-        flatten (Sequential a b) = flatten a ++ flatten b
-        -- END GOAL IS TO NOT HAVE TO SPLIT PARALLEL (BUT IS NEEDED DUE TO HOW
-        -- I READ MIDI FILES)
         flatten (Parallel a b) = flatten a ++ flatten b
+        flatten (Sequential a b) = flatten a ++ flatten b
+        flatten r@(Repeat _ _) = flatten $ expandRepeat r
         flatten m = [m]
 
-        -- Sequentialise sublists of length n
-        conjoin :: Int -> [Music] -> [Music]
-        conjoin n [] = []
-        conjoin n ms = let s = fromMaybe (Single $ Rest Whole) (sequentialise $ take n ms)
-            in s : conjoin n (drop n ms)
+        collect _ [] = []
+        collect n xs = fromMaybe (Single $ Rest Whole) (sequentialise $ take n xs) : collect n (drop n xs)
 
-        -- Collect transition data from the phrase list
-        collectData :: [Music] -> TransFreqTable Music
-        collectData ms = let transes = zip ms (tail ms)
-            in foldr addTrans M.empty transes
-
-        -- Add a transition to the table
-        addTrans :: (Music,Music) -> TransFreqTable Music -> TransFreqTable Music
-        addTrans (a,b) = M.insertWith (M.unionWith (+)) a (M.singleton b 1) 
-
-        -- Check if we've constructed a node for m
-        -- If we have, we can stop
-        -- Otherwise, construct a node and check its connections recursively
-        construct :: TransFreqTable Music -> M.Map Music (BayesNet Music) -> Music -> BayesNet Music
-        construct table nodeMap m = case M.lookup m nodeMap of
-            Just node -> node
-            Nothing ->
-                let succs = M.findWithDefault M.empty m table
-                    total = fromIntegral $ sum $ M.elems succs
-                    edges = [(construct table nodeMap' m', fromIntegral c / total)
-                                | (m',c) <- M.toList succs]
-                    node = Node m edges
-                    nodeMap' = M.insert m node nodeMap
-                in node
-
--- Depth First Search to find a node with given data
-findNode :: Eq a => a -> BayesNet a -> Maybe (BayesNet a)
-findNode _ Empty = Nothing
-findNode x n@(Node y cs)
-    | x == y = Just n
-    | otherwise = walkChildren cs
+-- Combining a Markov Chain
+combMarkov :: (Ord a, Eq a) => Graph a Rational -> Graph a Rational -> Graph a Rational
+combMarkov = unionWith comb
     where
-        walkChildren [] = Nothing
-        walkChildren ((c,_):r) = case findNode x c of
-            Just n' -> Just n'
-            Nothing -> walkChildren r
+        comb x y = (numerator x + numerator y) % (denominator x + denominator y)
 
--- Walk through a Bayes Network and generate music
-bayesGen :: BayesNet Music -> Int -> IO Music
-bayesGen net n = fromMaybe (Single $ Rest Whole) . sequentialise 
-    <$> bayesGen' [] net n
+-- Generating a Markov Chain
+markovGen :: Graph Music Rational -> Int -> Maybe Label -> IO Music
+markovGen g n (Just start) = case M.lookup start (labelToDataMap g) of
+    Nothing -> markovGen g n Nothing
+    _ -> do
+        labels <- generate n start
+        let blocks = map (\l -> fromMaybe (Single $ Rest Whole) $ M.lookup l (labelToDataMap g)) labels
+            sequenced = fromMaybe (Single $ Rest Whole) $ sequentialise blocks
+        return sequenced
     where
-        bayesGen' :: [Music] -> BayesNet Music -> Int -> IO [Music]
-        bayesGen' l _ 0 = return $ reverse l
-        bayesGen' l (Node _ []) _ = return $ reverse l
-        bayesGen' l (Node _ conns) n = do
-            newNet@(Node m _) <- chooseFromProbList conns
-            bayesGen' (m:l) newNet (n-1)
-        bayesGen' l Empty _ = return $ reverse l
+        generate :: Int -> Label -> IO [Label]
+        generate 0 _ = return []
+        generate n curr = do
+            let adj = M.toList $ M.findWithDefault M.empty curr (adjList g)
+
+            if null adj 
+                then return [curr]
+                else do
+                    nextLabel <- chooseFromProbList $ map (\(l,p) -> (l, fromRational p)) adj
+                    listTail <- generate (n-1) nextLabel
+                    return (curr:listTail)
+markovGen g n Nothing = chooseStart >>= markovGen g n . Just    
+    where
+        chooseStart :: IO Label
+        chooseStart = do
+            let labels = M.keys (labelToDataMap g)
+            n <- randomRIO (0, length labels)
+            return $ labels !! n
+
+

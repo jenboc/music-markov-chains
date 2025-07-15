@@ -76,7 +76,8 @@ executable music-hs
                       HCodecs,
                       mtl,
                       containers,
-                      random
+                      random,
+                      directory
 
     -- Directories containing source files.
     hs-source-dirs:   src

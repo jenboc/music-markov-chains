@@ -4,6 +4,9 @@ import Music
 import Generation
 import Codec.Midi
 import System.Environment (getArgs)
+import System.Directory (listDirectory)
+import Data.List (intercalate, foldl')
+import qualified Data.Map as M
 
 importMusic :: String -> IO Music
 importMusic filename = do
@@ -14,18 +17,56 @@ importMusic filename = do
             return $ Single $ Rest Whole
         Right midi -> return $ snd $ midiToMusic midi
 
+graphStats :: Graph a b -> IO ()
+graphStats g = do
+    let labels = M.keys (labelToDataMap g)
+    
+    putStrLn ""
+    putStrLn $ "Graph has " ++ show (length labels) ++ " labels"
+    putStrLn $ intercalate ", " $ map show labels
+
+    putStrLn $ intercalate "\n" $ map (\(k,v) -> show k ++ " has " ++ show (M.size v) ++ " connections") (M.toList $ adjList g)
+
+mostConnectedLabel :: Graph a b -> Int
+mostConnectedLabel = 
+    fst . foldl findMax (0,0) . map (\(k,v) -> (k, M.size v)) . M.toList . adjList
+    where
+        findMax m@(_,maxCount) n@(_,count)
+            | count > maxCount = n
+            | otherwise = m
+
+exportMusic :: String -> Music -> IO ()
+exportMusic fname m = exportFile fname $ musicToMidi 480 m
+
+endsWith :: String -> String -> Bool
+endsWith str suffix = reverse (take (length suffix) $ reverse str) == suffix
+
+chainFold :: Int -> IO (Graph Music Rational) -> String -> IO (Graph Music Rational)
+chainFold n accIO str = do
+    putStrLn str
+    acc <- accIO
+    music <- importMusic str
+    return $ combMarkov acc (createMusicMarkov n music)
+
+createChain :: String -> Int -> IO (Graph Music Rational)
+createChain p n = do
+    files <- listDirectory p
+
+    let midiOnly = filter (`endsWith` ".mid") (take 100 files)
+        fullPaths = map (\s -> p ++ "/" ++ s) midiOnly
+
+    putStrLn "Folding"
+    foldl' (chainFold n) (return emptyGraph) fullPaths
+
 main :: IO ()
 main = do
-    (filename:nStr:lStr:_) <- getArgs
+    (folderpath:nStr:lStr:_) <- getArgs
 
-    putStr $ "Constructing an " ++ nStr ++ "-gram model of " ++ filename
-    musicFile <- importMusic filename
     let n = read nStr :: Int
         l = read lStr :: Int
-        bayesNet = createBayesMusicNet n musicFile
-
-    putStrLn $ "Generating a " ++ lStr ++ " note length piece based on this model"
-    bayesRand <- bayesGen bayesNet l
-
-    putStrLn "Exporting this piece as ./bayes.mid"
-    exportFile "bayes.mid" $ musicToMidi 480 bayesRand
+    
+    chain <- createChain folderpath n
+    graphStats chain
+    
+    generated <- markovGen chain l Nothing
+    exportMusic "fullFolder.mid" generated
