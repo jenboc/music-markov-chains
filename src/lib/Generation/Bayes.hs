@@ -126,10 +126,9 @@ createTransFreqGraph = build emptyGraph
         build acc (from:to:r) = insertEdgeWith (+) from to 1 (build acc (to:r))
 
 createMusicMarkov :: Int -> Music -> Graph Music Rational
-createMusicMarkov n = markovFromFreqGraph . createTransFreqGraph . collect n . flatten
+createMusicMarkov n = markovFromFreqGraph . createTransFreqGraph . collect n . flatten . canonicalForm
     where
         flatten :: Music -> [Music]
-        flatten (Parallel a b) = flatten a ++ flatten b
         flatten (Sequential a b) = flatten a ++ flatten b
         flatten r@(Repeat _ _) = flatten $ expandRepeat r
         flatten m = [m]

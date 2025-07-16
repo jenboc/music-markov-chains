@@ -2,7 +2,9 @@ module Music.Conversion
     (
         musicToMidi,
         midiToMusic,
-        totalDuration
+        totalDuration,
+        ticksToDuration,
+        durationToTicks
     ) where
 
 import Music.Types

@@ -104,6 +104,8 @@ test-suite musicgen-tests
 
     main-is:          Spec.hs
 
+    other-modules:    Music.CanonicalTest
+
     build-depends:    base ^>= 4.17.2.1,
                       musicgen-lib,
                       tasty,

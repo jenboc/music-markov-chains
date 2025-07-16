@@ -27,9 +27,9 @@ graphStats g = do
 
     putStrLn $ intercalate "\n" $ map (\(k,v) -> show k ++ " has " ++ show (M.size v) ++ " connections") (M.toList $ adjList g)
 
-mostConnectedLabel :: Graph a b -> Int
+mostConnectedLabel :: Graph a b -> (Int,Int)
 mostConnectedLabel = 
-    fst . foldl findMax (0,0) . map (\(k,v) -> (k, M.size v)) . M.toList . adjList
+    foldl findMax (0,0) . map (\(k,v) -> (k, M.size v)) . M.toList . adjList
     where
         findMax m@(_,maxCount) n@(_,count)
             | count > maxCount = n
@@ -58,6 +58,19 @@ createChain p n = do
     putStrLn "Folding"
     foldl' (chainFold n) (return emptyGraph) fullPaths
 
+height :: Music -> Int
+height (Parallel a b) = height a + height b
+height (Sequential a b) = max (height a) (height b)
+height r@(Repeat _ _) = height $ expandRepeat r
+height _ = 1
+
+mlength :: Music -> Int
+mlength (Sequential a b) = mlength a + mlength b
+mlength (Parallel a b) = max (mlength a) (mlength b)
+mlength r@(Repeat _ _) = mlength $ expandRepeat r
+mlength _ = 1
+
+
 main :: IO ()
 main = do
     (fname:_) <- getArgs
@@ -65,8 +78,19 @@ main = do
     music <- importMusic fname
 
     let canonical = canonicalForm music
+        chain = createMusicMarkov 1 music
+    generated <- markovGen chain 100 $ Just 4
 
-    putStrLn "Canonical form of canonical form does nothing"
-    print $ canonical == (canonicalForm canonical)
-    putStrLn "Music is semantically equivalent to canonical form"
-    print $ music === canonical
+    graphStats chain
+    let (label, conns) = mostConnectedLabel chain
+
+    putStrLn "Height"
+    print $ map height $ M.keys (dataToLabelMap chain)
+    putStrLn "Length"
+    print $ map mlength $ M.keys (dataToLabelMap chain)
+
+    putStrLn $ "Label " ++ show label ++ " most connected w/ " ++ show conns ++ " connections"
+
+    exportMusic "rewritten.mid" music
+    exportMusic "canonical.mid" canonical
+    exportMusic "generated10.mid" generated
