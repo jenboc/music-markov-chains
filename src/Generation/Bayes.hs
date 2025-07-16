@@ -1,6 +1,7 @@
 module Generation.Bayes
     (
         Graph(..),
+        MarkovChain,
         emptyGraph,
         createMusicMarkov,
         markovGen,
@@ -11,6 +12,7 @@ import Music
 import Generation.Shared
 import System.Random (randomRIO)
 import Data.Maybe (fromMaybe)
+import Data.List (foldl')
 import Data.Ratio (numerator, denominator, (%))
 import qualified Data.Map as M
 import qualified Data.Map.Strict as MS
@@ -18,6 +20,7 @@ import qualified Data.Map.Strict as MS
 -- Type Definitions
 type Label = Int
 type AdjacencyList a = M.Map Label (M.Map Label a)
+type MarkovChain a = Graph a Rational
 
 data Graph a b = Graph
     {
@@ -42,10 +45,10 @@ emptyGraph = Graph
 
 -- Graph Operations
 lookupLabel :: Ord a => a -> Graph a b -> Maybe Label
-lookupLabel a g = M.lookup a (dataToLabelMap g)
+lookupLabel a g = MS.lookup a (dataToLabelMap g)
 
 lookupData :: Ord a => Label -> Graph a b -> Maybe a
-lookupData l g = M.lookup l (labelToDataMap g)
+lookupData l g = MS.lookup l (labelToDataMap g)
 
 insertData :: Ord a => a -> Graph a b -> Graph a b
 insertData a g = let l = nextLabel g in case lookupLabel a g of
@@ -53,9 +56,9 @@ insertData a g = let l = nextLabel g in case lookupLabel a g of
     Nothing -> 
         Graph
             {
-                labelToDataMap = M.insert l a (labelToDataMap g),
-                dataToLabelMap = M.insert a l (dataToLabelMap g),
-                adjList = M.insert l M.empty (adjList g),
+                labelToDataMap = MS.insert l a (labelToDataMap g),
+                dataToLabelMap = MS.insert a l (dataToLabelMap g),
+                adjList = MS.insert l M.empty (adjList g),
                 nextLabel = l + 1
             }
 
@@ -68,7 +71,7 @@ insertEdge :: Ord a => a -> a -> b -> Graph a b -> Graph a b
 insertEdge from to weight g =
     let (g', fromLabel) = lookupOrInsert from g
         (g'', toLabel) = lookupOrInsert to g'
-        adjList' = M.alter (addEdge toLabel weight) fromLabel (adjList g'')
+        adjList' = MS.alter (addEdge toLabel weight) fromLabel (adjList g'')
     in g'' { adjList = adjList' } 
     where
         addEdge l w Nothing = Just $ M.singleton l w
@@ -78,7 +81,7 @@ insertEdgeWith :: Ord a => (b -> b -> b) -> a -> a -> b -> Graph a b -> Graph a 
 insertEdgeWith f from to weight g =
     let (g', fromLabel) = lookupOrInsert from g
         (g'', toLabel) = lookupOrInsert to g'
-        adjList' = M.alter (addEdge toLabel weight) fromLabel (adjList g'')
+        adjList' = MS.alter (addEdge toLabel weight) fromLabel (adjList g'')
     in g'' { adjList = adjList' }
     where
         addEdge l w Nothing = Just $ M.singleton l w
@@ -86,8 +89,8 @@ insertEdgeWith f from to weight g =
 
 unionWith :: (Ord a, Eq a) => (b -> b -> b) -> Graph a b -> Graph a b -> Graph a b
 unionWith f a b = 
-    let aLabels = M.keys (labelToDataMap a)
-        (g, aLabelToBLabel) = foldl addLabels (b,M.empty) aLabels
+    let aLabels = MS.keys (labelToDataMap a)
+        (g, aLabelToBLabel) = foldl' addLabels (b,M.empty) aLabels
         aAdjList = replaceKeys (adjList a) aLabelToBLabel
     in g {adjList = MS.unionWith (MS.unionWith f) aAdjList (adjList g)}
     where
@@ -96,19 +99,19 @@ unionWith f a b =
                     Nothing -> error "The label doesn't have any data attached to it!"
                     Just d -> d
                 (gAcc',bLabel) = lookupOrInsert aData gAcc
-                mAcc' = M.insert aLabel bLabel mAcc
+                mAcc' = MS.insert aLabel bLabel mAcc
             in (gAcc', mAcc')
 
         replaceKeys m labelMap = MS.fromList 
             [
                 (newKey,v) 
-                | (oldKey,v) <- M.toList m, 
-                  Just newKey <- [M.lookup oldKey labelMap]
+                | (oldKey,v) <- MS.toList m, 
+                  Just newKey <- [MS.lookup oldKey labelMap]
             ]
 
 
 -- Constructing a Markov Chain
-markovFromFreqGraph :: Ord a => Graph a Integer -> Graph a Rational
+markovFromFreqGraph :: Ord a => Graph a Integer -> MarkovChain a
 markovFromFreqGraph g@(Graph {adjList = l}) = g {adjList = MS.map normalise l}
     where
         normalise innerMap = 
@@ -135,7 +138,7 @@ createMusicMarkov n = markovFromFreqGraph . createTransFreqGraph . collect n . f
         collect n xs = fromMaybe (Single $ Rest Whole) (sequentialise $ take n xs) : collect n (drop n xs)
 
 -- Combining a Markov Chain
-combMarkov :: (Ord a, Eq a) => Graph a Rational -> Graph a Rational -> Graph a Rational
+combMarkov :: (Ord a, Eq a) => MarkovChain a -> Graph a Rational -> Graph a Rational
 combMarkov = unionWith comb
     where
         comb x y = (numerator x + numerator y) % (denominator x + denominator y)

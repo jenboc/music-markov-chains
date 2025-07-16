@@ -52,7 +52,7 @@ createChain :: String -> Int -> IO (Graph Music Rational)
 createChain p n = do
     files <- listDirectory p
 
-    let midiOnly = filter (`endsWith` ".mid") (take 100 files)
+    let midiOnly = filter (`endsWith` ".mid") (take 200 files)
         fullPaths = map (\s -> p ++ "/" ++ s) midiOnly
 
     putStrLn "Folding"
