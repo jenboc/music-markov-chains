@@ -11,7 +11,7 @@ cabal-version:      3.0
 --   http://haskell.org/cabal/users-guide/
 --
 -- The name of the package.
-name:               music-hs
+name:               musicgen
 
 -- The package version.
 -- See the Haskell package versioning policy (PVP) for standards
@@ -50,23 +50,34 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
-executable music-hs
+library musicgen-lib
+    hs-source-dirs:   src/lib
+
+    exposed-modules:  Music.Types
+                      Music.Conversion
+                      Music.Canonical
+                      Music.Composition
+                      Music
+                      Generation.Shared
+                      Generation.Random
+                      Generation.Bayes
+                      Generation
+
+    build-depends:    base ^>=4.17.2.1,
+                      HCodecs,
+                      mtl,
+                      containers,
+                      random,
+                      directory
+
+    default-language: Haskell2010
+
+executable musicgen
     -- Import common warning flags.
     import:           warnings
 
     -- .hs or .lhs file containing the Main module.
     main-is:          Main.hs
-
-    -- Modules included in this executable, other than Main.
-    other-modules:    Music.Composition,
-                      Music.Conversion,
-                      Music.Types,
-                      Music.Canonical,
-                      Music,
-                      Generation.Shared,
-                      Generation.Random,
-                      Generation.Bayes,
-                      Generation
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -77,10 +88,26 @@ executable music-hs
                       mtl,
                       containers,
                       random,
-                      directory
+                      directory,
+                      musicgen-lib
 
     -- Directories containing source files.
-    hs-source-dirs:   src
+    hs-source-dirs:   src/app
 
     -- Base language which the package is written in.
+    default-language: Haskell2010
+
+test-suite musicgen-tests
+    type:             exitcode-stdio-1.0
+
+    hs-source-dirs:   tests
+
+    main-is:          Spec.hs
+
+    build-depends:    base ^>= 4.17.2.1,
+                      musicgen-lib,
+                      tasty,
+                      tasty-hunit,
+                      containers
+
     default-language: Haskell2010

@@ -60,13 +60,13 @@ createChain p n = do
 
 main :: IO ()
 main = do
-    (folderpath:nStr:lStr:_) <- getArgs
+    (fname:_) <- getArgs
 
-    let n = read nStr :: Int
-        l = read lStr :: Int
-    
-    chain <- createChain folderpath n
-    graphStats chain
-    
-    generated <- markovGen chain l Nothing
-    exportMusic "fullFolder.mid" generated
+    music <- importMusic fname
+
+    let canonical = canonicalForm music
+
+    putStrLn "Canonical form of canonical form does nothing"
+    print $ canonical == (canonicalForm canonical)
+    putStrLn "Music is semantically equivalent to canonical form"
+    print $ music === canonical
