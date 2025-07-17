@@ -2,9 +2,11 @@ module Generation
     (
         module Generation.Shared,
         module Generation.Random,
-        module Generation.Bayes
+        module Generation.Graph,
+        module Generation.Markov
     ) where
 
 import Generation.Shared
 import Generation.Random
-import Generation.Bayes
+import Generation.Graph
+import Generation.Markov

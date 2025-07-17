@@ -6,6 +6,8 @@ module Music.Types
         Note(..),
         Music(..),
         Transposable(..),
+        flattenParallels,
+        flattenSequentials,
         sequentialise,
         parallelise,
         intToPitch,
@@ -34,6 +36,16 @@ data Music = Single Note
            | Parallel Music Music
            | Repeat Int Music
     deriving (Eq, Ord, Show)
+
+flattenSequentials :: Music -> [Music]
+flattenSequentials (Sequential a b) = flattenSequentials a ++ flattenSequentials b
+flattenSequentials r@(Repeat _ _) = flattenSequentials $ expandRepeat r
+flattenSequentials m = [m]
+
+flattenParallels :: Music -> [Music]
+flattenParallels (Parallel a b) = flattenParallels a ++ flattenParallels b
+flattenParallels r@(Repeat _ _) = flattenParallels $ expandRepeat r
+flattenParallels m = [m]
 
 expandRepeat :: Music -> Music
 expandRepeat (Repeat n m) = fromMaybe (Single $ Rest Sixteenth) 

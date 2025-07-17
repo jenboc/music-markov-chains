@@ -5,7 +5,8 @@ import Generation
 import Codec.Midi
 import System.Environment (getArgs)
 import System.Directory (listDirectory)
-import Data.List (intercalate, foldl')
+import Data.Maybe
+import Data.List
 import qualified Data.Map as M
 
 importMusic :: String -> IO Music
@@ -41,23 +42,6 @@ exportMusic fname m = exportFile fname $ musicToMidi 480 m
 endsWith :: String -> String -> Bool
 endsWith str suffix = reverse (take (length suffix) $ reverse str) == suffix
 
-chainFold :: Int -> IO (Graph Music Rational) -> String -> IO (Graph Music Rational)
-chainFold n accIO str = do
-    putStrLn str
-    acc <- accIO
-    music <- importMusic str
-    return $ combMarkov acc (createMusicMarkov n music)
-
-createChain :: String -> Int -> IO (Graph Music Rational)
-createChain p n = do
-    files <- listDirectory p
-
-    let midiOnly = filter (`endsWith` ".mid") (take 200 files)
-        fullPaths = map (\s -> p ++ "/" ++ s) midiOnly
-
-    putStrLn "Folding"
-    foldl' (chainFold n) (return emptyGraph) fullPaths
-
 height :: Music -> Int
 height (Parallel a b) = height a + height b
 height (Sequential a b) = max (height a) (height b)
@@ -70,27 +54,52 @@ mlength (Parallel a b) = max (mlength a) (mlength b)
 mlength r@(Repeat _ _) = mlength $ expandRepeat r
 mlength _ = 1
 
+complexStats :: ComplexModel -> IO ()
+complexStats (ComplexModel dChain pChain) = graphStats dChain >> graphStats pChain
 
 main :: IO ()
 main = do
     (fname:_) <- getArgs
 
     music <- importMusic fname
+    
+    let music' = canonicalForm music
+        flattened = flattenSequentials music' >>= flattenParallels
+        durations = mapMaybe getDuration flattened
+        pitches = mapMaybe getPitch flattened
+    
+    putStrLn "num durations then num pitches"
+    print $ length $ nub durations
+    print $ length $ nub pitches
+    genTest music
+    where
+        -- Get the duration of a single note
+        getDuration :: Music -> Maybe Duration
+        getDuration (Single n) = case n of
+            Note _ d -> Just d
+            Rest d -> Just d
+        getDuration _ = Nothing
 
-    let canonical = canonicalForm music
-        chain = createMusicMarkov 1 music
-    generated <- markovGen chain 100 $ Just 4
+        -- Get pitch of a single note
+        getPitch :: Music -> Maybe Pitch
+        getPitch (Single (Note p _)) = Just p
+        getPitch _ = Nothing
 
-    graphStats chain
-    let (label, conns) = mostConnectedLabel chain
+genTest :: Music -> IO ()
+genTest music = do
+    let seqFlatNaive = createNaiveModel MaintainParallels 1 music
+        fullFlatNaive = createNaiveModel FlattenParallels 1 music
+        complex = createComplexModel (3,1) music
 
-    putStrLn "Height"
-    print $ map height $ M.keys (dataToLabelMap chain)
-    putStrLn "Length"
-    print $ map mlength $ M.keys (dataToLabelMap chain)
+    complexStats complex
 
-    putStrLn $ "Label " ++ show label ++ " most connected w/ " ++ show conns ++ " connections"
+    putStrLn "Generating with Maintained Parallels"
+    seqFlatGen <- naiveModelGen seqFlatNaive 50 Nothing
+    putStrLn "Generating with Flattened Parallels"
+    fullFlatGen <- naiveModelGen fullFlatNaive 50 Nothing
+    putStrLn "Generating with Complex Model"
+    complexGen <- complexModelGen complex 200
 
-    exportMusic "rewritten.mid" music
-    exportMusic "canonical.mid" canonical
-    exportMusic "generated10.mid" generated
+    exportMusic "seqFlat.mid" seqFlatGen
+    exportMusic "fullFlat.mid" fullFlatGen
+    exportMusic "complex.mid" complexGen

@@ -60,7 +60,8 @@ library musicgen-lib
                       Music
                       Generation.Shared
                       Generation.Random
-                      Generation.Bayes
+                      Generation.Graph
+                      Generation.Markov
                       Generation
 
     build-depends:    base ^>=4.17.2.1,

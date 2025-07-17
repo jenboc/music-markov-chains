@@ -1,19 +1,28 @@
-module Generation.Bayes
+module Generation.Graph
     (
         Graph(..),
         MarkovChain,
+        Label,
         emptyGraph,
-        createMusicMarkov,
-        markovGen,
-        combMarkov
+        lookupLabel,
+        lookupData,
+        lookupOrInsert,
+        insertEdge,
+        insertEdgeWith,
+        unionWith,
+        combMarkov,
+        markovFromFreqGraph,
+        createTransFreqGraph,
+        markovGen
     ) where
 
 import Music
 import Generation.Shared
 import System.Random (randomRIO)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.List (foldl')
 import Data.Ratio (numerator, denominator, (%))
+import Data.Bifunctor (second)
 import qualified Data.Map as M
 import qualified Data.Map.Strict as MS
 
@@ -109,8 +118,11 @@ unionWith f a b =
                   Just newKey <- [MS.lookup oldKey labelMap]
             ]
 
+combMarkov :: (Ord a, Eq a) => MarkovChain a -> MarkovChain a -> MarkovChain a
+combMarkov = unionWith comb
+    where
+        comb x y = (numerator x + numerator y) % (denominator x + denominator y)
 
--- Constructing a Markov Chain
 markovFromFreqGraph :: Ord a => Graph a Integer -> MarkovChain a
 markovFromFreqGraph g@(Graph {adjList = l}) = g {adjList = MS.map normalise l}
     where
@@ -125,50 +137,29 @@ createTransFreqGraph = build emptyGraph
         build acc [x] = insertData x acc
         build acc (from:to:r) = insertEdgeWith (+) from to 1 (build acc (to:r))
 
-createMusicMarkov :: Int -> Music -> Graph Music Rational
-createMusicMarkov n = markovFromFreqGraph . createTransFreqGraph . collect n . flatten . canonicalForm
-    where
-        flatten :: Music -> [Music]
-        flatten (Sequential a b) = flatten a ++ flatten b
-        flatten r@(Repeat _ _) = flatten $ expandRepeat r
-        flatten m = [m]
-
-        collect _ [] = []
-        collect n xs = fromMaybe (Single $ Rest Whole) (sequentialise $ take n xs) : collect n (drop n xs)
-
--- Combining a Markov Chain
-combMarkov :: (Ord a, Eq a) => MarkovChain a -> Graph a Rational -> Graph a Rational
-combMarkov = unionWith comb
-    where
-        comb x y = (numerator x + numerator y) % (denominator x + denominator y)
-
--- Generating a Markov Chain
-markovGen :: Graph Music Rational -> Int -> Maybe Label -> IO Music
+markovGen :: MarkovChain a -> Int -> Maybe Label -> IO [a]
 markovGen g n (Just start) = case M.lookup start (labelToDataMap g) of
     Nothing -> markovGen g n Nothing
     _ -> do
-        labels <- generate n start
-        let blocks = map (\l -> fromMaybe (Single $ Rest Whole) $ M.lookup l (labelToDataMap g)) labels
-            sequenced = fromMaybe (Single $ Rest Whole) $ sequentialise blocks
-        return sequenced
+        generatedLabels <- go n start
+        let generatedData = mapMaybe (`M.lookup` labelToDataMap g) generatedLabels
+        return generatedData
     where
-        generate :: Int -> Label -> IO [Label]
-        generate 0 _ = return []
-        generate n curr = do
+        go :: Int -> Label -> IO [Label]
+        go 0 _ = return []
+        go n curr = do
             let adj = M.toList $ M.findWithDefault M.empty curr (adjList g)
 
-            if null adj 
+            if null adj
                 then return [curr]
                 else do
-                    nextLabel <- chooseFromProbList $ map (\(l,p) -> (l, fromRational p)) adj
-                    listTail <- generate (n-1) nextLabel
+                    nextLabel <- chooseFromProbList $ map (second fromRational) adj
+                    listTail <- go (n-1) nextLabel
                     return (curr:listTail)
-markovGen g n Nothing = chooseStart >>= markovGen g n . Just    
+markovGen g n Nothing = chooseStart >>= markovGen g n . Just
     where
         chooseStart :: IO Label
         chooseStart = do
             let labels = M.keys (labelToDataMap g)
             n <- randomRIO (0, length labels)
             return $ labels !! n
-
-

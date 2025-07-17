@@ -1,5 +1,8 @@
 module Generation.Random
     (
+        MusicProbs(..),
+        NoteProbs(..),
+        Probabilities(..),
         randomGen,
         randomProbabilities,
         randomNoteProbs,
@@ -10,6 +13,64 @@ import Generation.Shared
 import Music
 import Data.Functor
 import System.Random (randomRIO)
+
+-- Probability Tables
+data MusicProbs = MusicProbs
+    {
+        single :: Double,
+        sequential :: Double,
+        parallel :: Double,
+        repeated :: Double
+    }
+    deriving (Show, Eq)
+
+data NoteProbs = NoteProbs
+    {
+        note :: Double,
+        rest :: Double,
+        duration :: [(Duration, Double)],
+        pitchClass :: [(PitchClass, Double)],
+        octave :: [(Int, Double)]
+    }
+    deriving (Show, Eq)
+
+data Probabilities = Probabilities
+    {
+        musicProbs :: MusicProbs,
+        noteProbs :: NoteProbs
+    }
+    deriving (Show, Eq)
+
+-- Choose a random Music construct
+randomMusic :: MusicProbs -> IO Music
+randomMusic ps = chooseFromProbList l
+    where
+        l =
+            [
+                (nullMusic, single ps),
+                (Sequential nullMusic nullMusic, sequential ps),
+                (Parallel nullMusic nullMusic, parallel ps),
+                (Repeat 0 nullMusic, repeated ps)
+            ]
+
+-- Choose a random note
+randomNote :: NoteProbs -> IO Note
+randomNote ps = do
+    d <- chooseFromProbList $ duration ps
+    n <- chooseFromProbList noteList
+    case n of
+        (Note _ _) -> do
+            pc <- chooseFromProbList $ pitchClass ps
+            o <- chooseFromProbList $ octave ps
+            let p = Pitch pc o
+            return $ Note p d
+        (Rest _) -> return $ Rest d
+    where
+        noteList = 
+            [
+                (Note (Pitch C 0) Sixteenth, note ps),
+                (Rest Sixteenth, rest ps)
+            ]
 
 -- Create a list of n numbers which sums to 1
 randomProbList :: Int -> IO [Double]
