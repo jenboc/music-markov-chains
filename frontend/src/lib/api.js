@@ -10,6 +10,8 @@ export const sendGenerationRequest = async (model, params, files) => {
         formData.append("files[]", file)
     });
 
+    console.log(formData);
+/*
     const resp = await fetch(`http://localhost:3000/${model.endpoint}`, {
         method: "POST",
         body: formData
@@ -17,7 +19,7 @@ export const sendGenerationRequest = async (model, params, files) => {
 
     if (!resp.ok)
         return null;
-
+*/
     // Just return the full response for now.
-    return resp;
+    return "YAY";
 };
