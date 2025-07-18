@@ -17,6 +17,8 @@ module Music.Types
 
 import Data.Maybe (fromMaybe)
 
+-- Our representation of music is based on a tree structure
+
 type Octave = Int
 
 data PitchClass = C | Cs | D | Ds | E | F | Fs | G | Gs | A | As | B 
@@ -37,21 +39,25 @@ data Music = Single Note
            | Repeat Int Music
     deriving (Eq, Ord, Show)
 
+-- Flatten the top level of sequential structures in the tree
 flattenSequentials :: Music -> [Music]
 flattenSequentials (Sequential a b) = flattenSequentials a ++ flattenSequentials b
 flattenSequentials r@(Repeat _ _) = flattenSequentials $ expandRepeat r
 flattenSequentials m = [m]
 
+-- Flatten the top level of parallel structures in the tree
 flattenParallels :: Music -> [Music]
 flattenParallels (Parallel a b) = flattenParallels a ++ flattenParallels b
 flattenParallels r@(Repeat _ _) = flattenParallels $ expandRepeat r
 flattenParallels m = [m]
 
+-- Expand a repeat node
 expandRepeat :: Music -> Music
 expandRepeat (Repeat n m) = fromMaybe (Single $ Rest Sixteenth) 
     $ sequentialise $ replicate n m
 expandRepeat m = m
 
+-- We can transpose (i.e. change the pitch of) the blocks
 class Transposable a where
     transpose :: Int -> a -> a
 

@@ -1,3 +1,13 @@
+{-
+    Due to the way I chose to represent music, there are multiple ways to
+    describe the same musical structures (e.g. sequential chords). We
+    need some kind of "canonial form" so we can see if two music trees
+    represent the same thing
+
+    The canonical form minimises the amount of nodes in a parallel structure,
+    i.e. s.t. a parallel structure only represents an individual chord
+-}
+
 module Music.Canonical
     (
         canonicalForm,

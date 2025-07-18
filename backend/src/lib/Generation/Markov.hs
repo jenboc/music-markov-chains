@@ -25,6 +25,9 @@ data NaiveModelType = FlattenParallels | MaintainParallels
 newtype NaiveModel = NaiveModel (MarkovChain Music)
     deriving Eq
 
+emptyNaiveModel :: NaiveModel
+emptyNaiveModel = NaiveModel emptyGraph
+
 -- Complex Models flatten parallels by default
 data ComplexModel = ComplexModel
     {
@@ -35,9 +38,6 @@ data ComplexModel = ComplexModel
         -- Could consider on/off chain -- but would need to be high degree to be useful
     }
     deriving Eq
-
-emptyNaiveModel :: NaiveModel
-emptyNaiveModel = NaiveModel emptyGraph
 
 emptyComplexModel :: ComplexModel
 emptyComplexModel = ComplexModel emptyGraph emptyGraph
@@ -55,15 +55,18 @@ createNaiveModel t n = NaiveModel . markovFromFreqGraph . createTransFreqGraph .
         collect _ [] = []
         collect n xs = fromMaybe nullMusic (sequentialise $ take n xs) : collect n (drop n xs)
 
+-- Combining naive models is the same as combining their chains
 combNaiveModel :: NaiveModel -> NaiveModel -> NaiveModel
 combNaiveModel (NaiveModel c1) (NaiveModel c2) = NaiveModel $ combMarkov c1 c2
 
+-- Generating using a naive model is the same as generating using its chain
 naiveModelGen :: NaiveModel -> Int -> Maybe Label -> IO Music
 naiveModelGen (NaiveModel chain) n maybeStart = do
     music <- markovGen chain n maybeStart
     return $ fromMaybe nullMusic $ sequentialise music
 
 -- Complex Model Construction and Generation
+-- Create a complex model with given duration chain and pitch chain degrees
 createComplexModel :: (Int,Int) -> Music -> ComplexModel
 createComplexModel (dn,pn) m =
     let flattened = flattenSequentials (canonicalForm m) >>= flattenParallels
@@ -93,12 +96,15 @@ createComplexModel (dn,pn) m =
         collect _ [] = []
         collect n xs = reverse (take n xs) : collect n (drop 1 xs)
 
+-- To combine 2 complex models, combine their chains separately
 combComplexModel :: ComplexModel -> ComplexModel -> ComplexModel
 combComplexModel (ComplexModel d1 p1) (ComplexModel d2 p2) =
     let d = combMarkov d1 d2
         p = combMarkov p1 p2
     in ComplexModel d p
 
+-- To generate using a complex model, walk through each chain and then combine
+-- the generated data into notes
 complexModelGen :: ComplexModel -> Int -> IO Music
 complexModelGen (ComplexModel dChain pChain) n = do
     durationGroups <- markovGen dChain n Nothing

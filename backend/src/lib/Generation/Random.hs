@@ -1,3 +1,8 @@
+{-
+    Music Generation based off of flat probabilities
+    No Markov Chains here! 
+-}
+
 module Generation.Random
     (
         MusicProbs(..),
@@ -84,6 +89,7 @@ randomProbList = randomProbList' 1
             others <- randomProbList' (r - num) (n - 1)
             return $ num : others
 
+-- Generate a random music table
 randomMusicProbs :: IO MusicProbs
 randomMusicProbs = do
     (sing:seq:par:rep:r) <- randomProbList 4
@@ -95,6 +101,7 @@ randomMusicProbs = do
             repeated = rep
         }
 
+-- Generate a random note table
 randomNoteProbs :: IO NoteProbs
 randomNoteProbs = do
     (noteProb:restProb:r) <- randomProbList 2
@@ -112,7 +119,7 @@ randomNoteProbs = do
             octave = zip [3, 4, 5] octaveProbs
         }
 
-
+-- Generate a full probability table
 randomProbabilities :: IO Probabilities
 randomProbabilities = do
     music <- randomMusicProbs
