@@ -5,12 +5,14 @@ function FileUpload({ onUpload, accept="*/*", multiple=true }) {
     const fileInputRef = useRef(null);
     const [selectedFiles, setSelectedFiles] = useState([]);
 
+    // Pass the file paths back to the parent
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files || []);
         setSelectedFiles(files);
         onUpload(files);
     }
 
+    // Trigger the file input
     const onButtonClick = () => {
         fileInputRef.current?.click();
     }

@@ -96,7 +96,8 @@ executable musicgen
                       directory,
                       transformers,
                       http-types,
-                      zip-archive
+                      zip-archive,
+                      aeson
 
     -- Directories containing source files.
     hs-source-dirs:   src/app
