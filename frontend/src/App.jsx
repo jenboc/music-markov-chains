@@ -62,7 +62,7 @@ function App() {
         setWarning(null);
         setCanSubmit(true);
 
-    }, [model, files]);
+    }, [model, files, modelParams, genSettings]);
 
     // Component Callbacks
     const handleModelSelection = e => setModel(e);

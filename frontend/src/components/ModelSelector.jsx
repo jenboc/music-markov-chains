@@ -58,17 +58,19 @@ function ModelSelector({onSelect}) {
                 </li>
             ))}
         </ol>
-
-        <select onChange={onSelectChange}>
-            {!placeholderDisabled && <option value="">
-                -- Select Model --
-            </option>}
-            {OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                </option>
-            ))}
-        </select>
+        
+        <div className="centred-wrapper">
+            <select onChange={onSelectChange}>
+                {!placeholderDisabled && <option value="">
+                    -- Select Model --
+                </option>}
+                {OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                    </option>
+                ))}
+            </select>
+        </div>
     </div>
 }
 

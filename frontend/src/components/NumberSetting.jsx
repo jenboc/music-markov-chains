@@ -1,7 +1,9 @@
+import "../css/NumberSetting.css";
+
 function NumberSetting({label, value, min, onChange}) {
     return <div className="number-setting">
         <label htmlFor={value} className="setting-label">
-            {label}
+            <strong>{label}:</strong>
         </label>
         <input
             type="number"

@@ -1,42 +1,62 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
+h1 {
+    text-align: center;
+}
+
+/* Base styles for the entire form */
+.form-container {
+  max-width: 800px;
+  margin: 2rem auto;
   padding: 2rem;
-  text-align: center;
+  border-radius: 12px;
+  background-color: #2a2a2a;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  font-family: sans-serif;
+  color: #f0f0f0;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Form sections */
+.form-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #333;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.form-section h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  color: #ffffff;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.form-section p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #cccccc;
 }
 
-.card {
-  padding: 2em;
+/* Warning and error messages */
+.warning-msg {
+  color: #ffcc00;
+  background-color: #3b3200;
+  border: 1px solid #ffcc00;
+  padding: 0.75rem 1rem;
+  border-radius: 5px;
+  margin-top: 1rem;
 }
 
-.read-the-docs {
-  color: #888;
+.error-msg {
+  color: #ff6b6b;
+  background-color: #3a1a1a;
+  border: 1px solid #ff6b6b;
+  padding: 0.75rem 1rem;
+  border-radius: 5px;
+  margin-top: 1rem;
+}
+
+.centred-wrapper {
+    display: flex;
+    justify-content: center;
+}
+
+li + li {
+    margin-top: 1ch;
 }
