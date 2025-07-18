@@ -6,7 +6,7 @@ using Markov Chains
 
 This is the first substantial project that I have written using Haskell so please be nice.
 
-## Running the Frontend
+## Running the Backend
 ```bash
 cd backend
 cabal run musicgen
