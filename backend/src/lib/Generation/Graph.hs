@@ -38,6 +38,7 @@ data Graph a b = Graph
         adjList :: AdjacencyList b,
         nextLabel :: Label
     }
+    deriving Eq
 
 instance Functor (Graph a) where
     fmap f g@(Graph { adjList = l }) =

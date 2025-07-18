@@ -4,7 +4,9 @@ module Music.Conversion
         midiToMusic,
         totalDuration,
         ticksToDuration,
-        durationToTicks
+        durationToTicks,
+        importMusicFromMidi,
+        exportMusicToMidi
     ) where
 
 import Music.Types
@@ -15,6 +17,18 @@ import Data.Maybe (fromMaybe, catMaybes)
 import Codec.Midi
 
 type MidiTrack = [(Int, Message)]
+
+importMusicFromMidi :: FilePath -> IO (Maybe Music)
+importMusicFromMidi path = do
+    res <- importFile path
+    case res of
+        Left _ -> return Nothing
+        Right midi -> return $ Just $ snd $ midiToMusic midi
+
+exportMusicToMidi :: FilePath -> Music -> Int -> IO ()
+exportMusicToMidi path m tsPerQuarter = 
+    let midi = musicToMidi tsPerQuarter m
+    in exportFile path midi
 
 -- ###### Music -> MIDI ######
 musicToTrack :: Int -> Music -> MidiTrack

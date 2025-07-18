@@ -3,6 +3,8 @@ module Generation.Markov
         NaiveModelType(..),
         NaiveModel,
         ComplexModel(..),
+        emptyNaiveModel,
+        emptyComplexModel,
         createNaiveModel,
         naiveModelGen,
         combNaiveModel,
@@ -21,6 +23,7 @@ import Control.Monad ((>=>))
 data NaiveModelType = FlattenParallels | MaintainParallels
     deriving (Enum, Eq)
 newtype NaiveModel = NaiveModel (MarkovChain Music)
+    deriving Eq
 
 -- Complex Models flatten parallels by default
 data ComplexModel = ComplexModel
@@ -31,6 +34,13 @@ data ComplexModel = ComplexModel
         pitchChain :: MarkovChain [Pitch]
         -- Could consider on/off chain -- but would need to be high degree to be useful
     }
+    deriving Eq
+
+emptyNaiveModel :: NaiveModel
+emptyNaiveModel = NaiveModel emptyGraph
+
+emptyComplexModel :: ComplexModel
+emptyComplexModel = ComplexModel emptyGraph emptyGraph
 
 -- Naive Model Construction and Generation
 createNaiveModel :: NaiveModelType -> Int -> Music -> NaiveModel

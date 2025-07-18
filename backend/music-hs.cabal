@@ -85,12 +85,18 @@ executable musicgen
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.17.2.1,
-                      HCodecs,
-                      mtl,
+                      musicgen-lib,
                       containers,
-                      random,
+                      filepath,
+                      scotty,
+                      wai,
+                      wai-extra,
+                      text,
+                      bytestring,
                       directory,
-                      musicgen-lib
+                      transformers,
+                      http-types,
+                      zip-archive
 
     -- Directories containing source files.
     hs-source-dirs:   src/app
