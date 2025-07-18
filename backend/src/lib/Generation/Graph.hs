@@ -183,5 +183,5 @@ markovGen g n Nothing = chooseStart >>= markovGen g n . Just
         chooseStart :: IO Label
         chooseStart = do
             let labels = M.keys (labelToDataMap g)
-            n <- randomRIO (0, length labels)
+            n <- randomRIO (0, length labels - 1)
             return $ labels !! n
