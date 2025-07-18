@@ -16,7 +16,8 @@ data ComplexParameters = ComplexParameters
         durationDegree :: Int,
         pitchDegree :: Int,
         genSteps :: Int,
-        genCount :: Int
+        genCount :: Int,
+        ticksPerQuarter :: Int
     }
     deriving (Generic, Show)
 
@@ -24,7 +25,8 @@ data NaiveParameters = NaiveParameters
     {
         degree :: Int,
         genSteps :: Int,
-        genCount :: Int
+        genCount :: Int,
+        ticksPerQuarter :: Int
     }
     deriving (Generic, Show)
 

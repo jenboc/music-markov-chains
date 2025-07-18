@@ -51,7 +51,7 @@ function App() {
         }
 
         // Have we properly set generation settings?
-        expectedKeys = ["gen-steps", "gen-count"];
+        expectedKeys = ["gen-steps", "gen-count", "ticks-per-quarter"];
         if (genSettings === null || !hasKeys(genSettings, expectedKeys)) {
             setWarning("Please fully configure generation");
             setCanSubmit(false);
@@ -80,7 +80,25 @@ function App() {
         const params = {...modelParams, ...genSettings};
 
         // Send the request
-        const resp = sendGenerationRequest(model, params, files);
+        sendGenerationRequest(model, params, files)
+            .then(zipFile => {
+                if (zipFile === null) {
+                    setError("Generation failed.");
+                    return;
+                }
+
+                console.log(typeof(zipFile));
+
+                const url = window.URL.createObjectURL(zipFile);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "generated.zip";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+
+                setTimeout(() => URL.revokeObjectURL(url), 5000);
+            });
     };
 
     return <div className="form-container">

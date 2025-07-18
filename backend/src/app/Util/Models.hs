@@ -16,22 +16,18 @@ import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import System.FilePath ((</>))
 import qualified Data.ByteString.Lazy as BL
 
--- TODO: Pass this as a parameter
-tpq :: Int
-tpq = 480
-
 useNaive :: NaiveModelType -> NaiveParameters -> [FilePath] -> IO (Maybe BL.ByteString)
-useNaive t (NaiveParameters deg steps count) fpaths =
+useNaive t (NaiveParameters deg steps count tpq) fpaths =
     let gen m s = naiveModelGen m s Nothing
-    in useModel (foldNaiveChain t deg) emptyNaiveModel gen fpaths steps count
+    in useModel (foldNaiveChain t deg) emptyNaiveModel gen fpaths steps count tpq
 
 useComplex :: ComplexParameters -> [FilePath] -> IO (Maybe BL.ByteString)
-useComplex (ComplexParameters durDeg pitchDeg steps count) fpaths =
+useComplex (ComplexParameters durDeg pitchDeg steps count tpq) fpaths =
     useModel (foldComplexChain (durDeg, pitchDeg)) emptyComplexModel complexModelGen
-        fpaths steps count
+        fpaths steps count tpq
 
-useModel :: (Eq a) => (IO a -> FilePath -> IO a) -> a -> (a -> Int -> IO Music) -> [FilePath] -> Int -> Int -> IO (Maybe BL.ByteString)
-useModel foldOp emptyModel genFunc fpaths steps count = do
+useModel :: (Eq a) => (IO a -> FilePath -> IO a) -> a -> (a -> Int -> IO Music) -> [FilePath] -> Int -> Int -> Int -> IO (Maybe BL.ByteString)
+useModel foldOp emptyModel genFunc fpaths steps count tpq = do
     model <- foldl' foldOp (return emptyModel) fpaths
 
     -- If after all that we still have the empty model, we failed to open

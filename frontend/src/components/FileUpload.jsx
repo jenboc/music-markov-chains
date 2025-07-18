@@ -1,4 +1,3 @@
-import "../css/FileUpload.css"
 import { useRef, useState } from "react";
 
 function FileUpload({ onUpload, accept="*/*", multiple=true }) {

@@ -4,10 +4,6 @@ import NumberSetting from "./NumberSetting";
 function ModelSettings({params, onChange}) {
     const [settings, setSettings] = useState({});
 
-    useEffect(() => {
-        setSettings({});
-    }, [params])
-
     const handleSettingChange = (k, v) => {
         const settingsClone = structuredClone(settings);
         settingsClone[k] = v;
@@ -36,7 +32,7 @@ function ModelSettings({params, onChange}) {
                 label={label}
                 value={value}
                 min={min}
-                onChange={e => handleSettingChange(value, parseInt(e.target.value))} 
+                onChange={x => handleSettingChange(value, x)} 
             />
         ))}
     </div>

@@ -1,6 +1,8 @@
 export const sendGenerationRequest = async (model, params, files) => {
     const formData = new FormData();
 
+    console.log(params);
+
     formData.append("params", JSON.stringify(params));
     
     files.forEach((file, _) => {
@@ -14,22 +16,10 @@ export const sendGenerationRequest = async (model, params, files) => {
 
     if (!resp.ok) {
         console.error("Generation Request error:", resp.statusText);
-        return false;
+        return null;
     }
 
     // Get the file blob and create download URL
     const blob = await resp.blob();
-    const url = window.URL.createObjectURL(blob);
-
-    // Download the file
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "generated.zip";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-
-    return true;
+    return blob;
 };

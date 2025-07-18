@@ -9,7 +9,7 @@ import Util.FileManagement
 import Util.Models
 
 import Web.Scotty
-import Network.HTTP.Types.Status (internalServerError500)
+import Network.HTTP.Types.Status (internalServerError500, badRequest400)
 import Network.Wai.Parse (lbsBackEnd, parseRequestBody)
 import Data.Aeson as A
 import qualified Data.Text.Lazy as TL
@@ -29,9 +29,13 @@ modelEndpoint gen = do
     -- Start by parsing the JSON
     let maybeJson = lookup "params" fieldsPart
     case maybeJson of
-        Nothing -> text "Missing JSON part 'params'"
+        Nothing -> do
+            status badRequest400
+            text "Missing JSON part 'params'"
         Just bs -> case eitherDecode (BL.fromStrict bs) of
-            Left err -> text $ "Invalid JSON: " <> TL.pack err
+            Left err -> do
+                status badRequest400
+                text $ "Invalid JSON: " <> TL.pack err
             Right val -> do
                 filePaths <- liftIO $ saveFiles filesPart
                 zipped <- liftIO $ gen val filePaths

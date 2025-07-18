@@ -53,9 +53,7 @@ input[type="number"] {
     font-size: 1rem;
     width: 100px;
     text-align: center;
-    appearance: textfield; /* removes spin buttons in Firefox */
-
-    /* Optional: transition for smooth hover/focus */
+    appearance: textfield;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
